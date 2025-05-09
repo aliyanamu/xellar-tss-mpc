@@ -3,31 +3,45 @@ import dotenv from 'dotenv';
 dotenv.config();
  
 /**
- * Minifies a JSON string by removing unnecessary spaces.
+ * Sanitizes the request payload to include only allowed keys.
+ * Removes undefined, null, or prototype-polluting keys.
  */
-function minifiedJSON(inputJSON) {
-  if (!inputJSON) {
-    return "";
+export function sanitizedBody(inputObject) {
+  console.log('inputObject', inputObject);
+  if (typeof inputObject !== 'object' || inputObject === null) {
+    throw new Error('Input must be a non-null object');
   }
-  try {
-    const parsed = JSON.parse(inputJSON);
-    return JSON.stringify(parsed); // Minified JSON
-  } catch (error) {
-    throw new Error(`Invalid JSON input: ${error.message}`);
+
+  // Only allow these keys for now
+  const allowedKeys = ['subId', 'network', 'chainId'];
+
+  const cleanObject = {};
+
+  for (const key of allowedKeys) {
+    if (
+      Object.prototype.hasOwnProperty.call(inputObject, key) &&
+      inputObject[key] != null &&
+      !['__proto__', 'constructor', 'prototype'].includes(key)
+    ) {
+      cleanObject[key] = inputObject[key];
+    }
   }
+
+  console.log('sanitizedObject', JSON.stringify(cleanObject));
+  return JSON.stringify(cleanObject); // Minified, safe JSON string
 }
- 
+
 /**
- * Hashes the minified JSON using SHA256 and converts it to lowercase.
+ * Hashes the sanitized JSON string using SHA256.
  */
 function hashMinifiedJSON(inputJSON) {
-  const minified = minifiedJSON(inputJSON);
-  const hash = crypto.createHash('sha256').update(minified).digest('hex');
+  const sanitized = sanitizedBody(inputJSON);
+  const hash = crypto.createHash('sha256').update(sanitized).digest('hex');
   return hash.toLowerCase();
 }
- 
+
 /**
- * Generates the HMAC signature using the provided inputs.
+ * Generates HMAC signature from sanitized payload.
  */
 function generateSignature(method, url, clientSecret, hashedMinifiedJSON, timestamp) {
   const stringToSign = `${method.toUpperCase()}:${url}:${hashedMinifiedJSON}:${timestamp}`;
@@ -35,30 +49,33 @@ function generateSignature(method, url, clientSecret, hashedMinifiedJSON, timest
   const hmac = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest();
   return hmac.toString('base64');
 }
- 
+
 /**
- * Prepares headers for an authorized request.
+ * Builds headers for the request.
  */
-export default function prepareHeaders(method, url, requestBody) {
+export function prepareHeaders(method, url, requestBody) {
   const appId = process.env.XELLAR_APP_ID || '';
   const clientSecret = process.env.XELLAR_CLIENT_SECRET || '';
- 
-  const timestamp = new Date().toISOString(); // ISO 8601: "YYYY-MM-DDTHH:mm:ss.sssZ"
-  // Hash the minified JSON
+  const timestamp = new Date().toISOString();
   const hashedMinifiedJSON = hashMinifiedJSON(requestBody);
- 
-  // Generate signature
   const signature = generateSignature(method, url, clientSecret, hashedMinifiedJSON, timestamp);
 
-  // Prepare headers
   const headers = {
     'Content-Type': 'application/json',
-    'X-TIMESTAMP': timestamp,    
+    'X-TIMESTAMP': timestamp,
     'X-SIGNATURE': signature,
     'X-APP-ID': appId,
   };
 
-  console.log('authorization', { appId, clientSecret, hashedMinifiedJSON, timestamp, signature, requestBody });
+  console.log('authorization', {
+    appId,
+    clientSecret,
+    hashedMinifiedJSON,
+    timestamp,
+    signature,
+    requestBody,
+  });
   console.log('headers', headers);
+
   return headers;
 }

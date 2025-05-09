@@ -1,5 +1,5 @@
 import axios from 'axios';
-import prepareHeaders from './headers.js';
+import { sanitizedBody, prepareHeaders } from './headers.js';
 
 const config = {
   baseUrl: 'https://tss-dev.xellar.co',
@@ -23,14 +23,14 @@ function resolveEndpoint(endpointKey, params = {}) {
 async function makeRequest(endpointKey, method = 'GET', payload = null, pathParams = {}) {
   const endpointPath = resolveEndpoint(endpointKey, pathParams);
   const url = `${config.baseUrl}${endpointPath}`;
-  const body = payload ? JSON.stringify(payload) : null;
+  const sanitized = payload ? sanitizedBody(payload) : null;
 
   try {
     const response = await axios({
       method,
       url,
-      headers: prepareHeaders(method, endpointPath, body),
-      data: body,
+      headers: prepareHeaders(method, endpointPath, payload),
+      data: sanitized,
     });
 
     return {
@@ -83,7 +83,7 @@ async function getAccount(accountId) {
 }
 
 async function runTests() {
-  const testAccount = { subId: 'c9da759c-c0c1-708c-6ffa-76ca2f05048f' };
+  const testAccount = { subId: 'c9da759c-c0c1-708c-6ffa-76ca2f05048f', network: 'EVM', chainId: 1 };
 
   console.log('📡 Testing Xellar TSS Service');
   console.log(`→ Base URL: ${config.baseUrl}\n`);
