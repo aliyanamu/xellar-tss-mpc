@@ -34,8 +34,7 @@ export function sanitizedBody(inputObject) {
 /**
  * Hashes the sanitized JSON string using SHA256.
  */
-function hashMinifiedJSON(inputJSON) {
-  const sanitized = sanitizedBody(inputJSON);
+function hashMinifiedJSON(sanitized) {
   const hash = crypto.createHash('sha256').update(sanitized).digest('hex');
   return hash.toLowerCase();
 }
@@ -50,13 +49,27 @@ function generateSignature(method, url, clientSecret, hashedMinifiedJSON, timest
   return hmac.toString('base64');
 }
 
+function formatDateISOWithOffset(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+
+  const year = date.getUTCFullYear();
+  const month = pad(date.getUTCMonth() + 1); // getUTCMonth() dimulai dari 0
+  const day = pad(date.getUTCDate());
+  const hours = pad(date.getUTCHours());
+  const minutes = pad(date.getUTCMinutes());
+  const seconds = pad(date.getUTCSeconds());
+
+  // Format: YYYY-MM-DDTHH:mm:ss+00:00
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+00:00`;
+}
+
 /**
  * Builds headers for the request.
  */
 export function prepareHeaders(method, url, requestBody) {
   const appId = process.env.XELLAR_APP_ID || '';
   const clientSecret = process.env.XELLAR_CLIENT_SECRET || '';
-  const timestamp = new Date().toISOString();
+  const timestamp = formatDateISOWithOffset(new Date());
   const hashedMinifiedJSON = hashMinifiedJSON(requestBody);
   const signature = generateSignature(method, url, clientSecret, hashedMinifiedJSON, timestamp);
 

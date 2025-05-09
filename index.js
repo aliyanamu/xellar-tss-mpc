@@ -23,14 +23,14 @@ function resolveEndpoint(endpointKey, params = {}) {
 async function makeRequest(endpointKey, method = 'GET', payload = null, pathParams = {}) {
   const endpointPath = resolveEndpoint(endpointKey, pathParams);
   const url = `${config.baseUrl}${endpointPath}`;
-  const sanitized = payload ? sanitizedBody(payload) : null;
+  const sanitized = payload ? sanitizedBody(payload) : '';
 
   try {
     const response = await axios({
       method,
       url,
-      headers: prepareHeaders(method, endpointPath, payload),
-      data: sanitized,
+      headers: prepareHeaders(method, endpointPath, sanitized),
+      data: method === 'GET' ? undefined : sanitized,
     });
 
     return {
@@ -83,15 +83,13 @@ async function getAccount(accountId) {
 }
 
 async function runTests() {
-  const testAccount = { subId: 'c9da759c-c0c1-708c-6ffa-76ca2f05048f', network: 'EVM', chainId: 1 };
+  const testAccount = { subId: 'c9da759c-c0c1-708c-6ffa-76ca2f05048f', network: 'EVM', chainId: 17000 };
 
   console.log('📡 Testing Xellar TSS Service');
   console.log(`→ Base URL: ${config.baseUrl}\n`);
 
-  const created = await createAccount(testAccount);
-  // const fetched = await getAccount(testAccount.subId);
-
-  console.log('Final result:', created);
+  // await createAccount(testAccount);
+  await getAccount(testAccount.subId);
 }
 
 runTests();
